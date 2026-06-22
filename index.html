@@ -865,12 +865,11 @@ function renderOggi(){
         </div>
       </div>
       <div class="field">
-        <label class="lbl">ODG del giorno <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:9.5px">(incolla testo o carica PDF)</span></label>
+        <label class="lbl">ODG del giorno</label>
         <div class="row" style="margin-bottom:8px">
           <label class="doc-btn"><input type="file" id="f-odg" accept=".pdf" style="display:none">📄 Carica PDF ODG</label>
           <span id="fn-odg" style="font-family:var(--mono);font-size:11px;color:var(--mu2)"></span>
         </div>
-        <textarea id="inp-odg" class="inp" rows="3" placeholder="Es. set ore 7:30, prime scene notti Tevere poi interni appartamento pomeriggio…">${esc(S.day.odg)}</textarea>
       </div>
       <div class="field">
         <label class="lbl">Scene del giorno — testo sceneggiatura</label>
@@ -940,14 +939,13 @@ function renderOggi(){
   // Listeners
   document.getElementById('btn-go')?.addEventListener('click',()=>{
     S.day.data=document.getElementById('inp-data').value;
-    S.day.odg=document.getElementById('inp-odg').value;
     S.day.scene=document.getElementById('inp-scene').value;
     runDay();
   });
   document.getElementById('f-odg')?.addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
     const el=document.getElementById('fn-odg');el.textContent='Estrazione…';
-    try{const t=await extractText(f);document.getElementById('inp-odg').value=t;el.textContent='✓ '+f.name;}
+    try{const t=await extractText(f);S.day.odg=t;el.textContent='✓ '+f.name;}
     catch{el.textContent='✗ Errore PDF';}
   });
   document.getElementById('btn-save')?.addEventListener('click',saveDay);

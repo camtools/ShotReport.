@@ -33,9 +33,9 @@ button{font-family:var(--sans);cursor:pointer}
 .brand{display:flex;align-items:center;gap:11px;margin-bottom:13px}
 .bmark{width:30px;height:30px;border-radius:8px;border:1px solid var(--b2);background:radial-gradient(circle at 50% 50%,var(--acc) 0 4px,transparent 5px),conic-gradient(from 0deg,var(--sf2),var(--b2),var(--sf2));flex:none}
 .btxt b{font-size:15px;font-weight:700;letter-spacing:.01em;display:block;line-height:1.1;font-family:var(--disp)}
-.btxt small{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mu)}
+.btxt small{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mu);margin-top:-2px}
 .tabrow{display:flex;gap:2px;align-items:center;flex-wrap:wrap}
-.tab{background:none;border:none;color:var(--mu);padding:10px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;position:relative;transition:color .12s}
+.tab{background:none;border:none;color:var(--mu);padding:10px 14px;font-family:var(--mono);font-size:16px;letter-spacing:.13em;text-transform:uppercase;position:relative;transition:color .12s}
 .tab:hover{color:var(--tx)}
 .tab.on{color:var(--tx)}
 .tab.on::after{content:'';position:absolute;left:14px;right:14px;bottom:3px;height:2px;background:var(--acc)}
@@ -353,7 +353,7 @@ const RANK={alta:3,media:2,bassa:1};
 const LABEL={alta:'Alta',media:'Media',bassa:'Bassa'};
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtDate(iso){
-  try{const d=new Date(iso+'T00:00:00');return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear();}
+  try{const d=new Date(iso+'T00:00:00');return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1)+'-'+d.getFullYear();}
   catch{return iso;}
 }
 function splitScenes(text){
@@ -832,7 +832,7 @@ function renderTopbar(){
         <div class="btxt"><b>Shot Report</b><small>AI Assistant</small></div>
       </div>
       <div class="mseg">
-        <button class="${S.mode==='manual'?'on man':''}" data-mode="manual">✋ Manuale</button>
+        <button class="${S.mode==='manual'?'on man':''}" data-mode="manual">Manuale</button>
         <button class="${S.mode==='api'?'on api':''}" data-mode="api">⚡ API</button>
       </div>
     </div>

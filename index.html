@@ -237,7 +237,7 @@ const S={
   view:'oggi',
   apiKey: localStorage.getItem('ac.key')||'',
   profile: lsGet('ac.profile',{nome:'',gear:'',note:''}),
-  docs:    lsGet('ac.docs',   {sceneggiatura:null,spoglio:null,pdl:null}),
+  docs:    lsGet('ac.docs',   {sceneggiatura:null,spoglio:null,pdl:null,listamateriale:null}),
   memVersions: lsGet('ac.memVersions',[]),
   memCurrentId: lsGet('ac.memCurrentId',null),
   memoria: null,            // puntatore alla versione corrente (impostato sotto)
@@ -964,6 +964,7 @@ function renderProduzione(){
       ${docRow('sceneggiatura','Sceneggiatura')}
       ${docRow('spoglio','Spoglio della sceneggiatura')}
       ${docRow('pdl','Piano di lavorazione')}
+      ${docRow('listamateriale','Lista materiale')}
       ${S.memLoading
         ?`<div class="row" style="gap:12px;padding:8px 0"><div class="spin sm"></div><span style="font-family:var(--mono);font-size:12px;color:var(--mu)">${esc(S.memStep)}</span></div>`
         :`<div class="row" style="margin-top:6px">
@@ -1037,7 +1038,7 @@ function renderProduzione(){
   document.getElementById('main').innerHTML=h;
 
   // Doc listeners
-  ['sceneggiatura','spoglio','pdl'].forEach(key=>{
+  ['sceneggiatura','spoglio','pdl','listamateriale'].forEach(key=>{
     document.getElementById('f-'+key)?.addEventListener('change',async e=>{
       const f=e.target.files[0];if(!f)return;
       document.getElementById('fn-'+key).innerHTML='<span style="font-family:var(--mono);font-size:11px;color:var(--mu2)">Estrazione…</span>';

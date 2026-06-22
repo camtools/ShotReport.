@@ -826,17 +826,18 @@ function compareHTML(){
 
 function renderTopbar(){
   document.getElementById('topbar').innerHTML=`<div class="tbar-inner">
-    <div class="brand">
-      <div class="bmark"></div>
-      <div class="btxt"><b>Shot Report</b><small>AI Assistant</small></div>
-    </div>
-    <div class="tabrow">
-      ${['oggi','produzione','archivio'].map(v=>`<button class="tab${S.view===v?' on':''}" data-v="${v}">${v==='oggi'?'Oggi':v==='produzione'?'Produzione':'Archivio'}</button>`).join('')}
-      <span class="spacer"></span>
-      <div class="mseg" style="align-self:center;margin-bottom:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="brand">
+        <div class="bmark"></div>
+        <div class="btxt"><b>Shot Report</b><small>AI Assistant</small></div>
+      </div>
+      <div class="mseg">
         <button class="${S.mode==='manual'?'on man':''}" data-mode="manual">✋ Manuale</button>
         <button class="${S.mode==='api'?'on api':''}" data-mode="api">⚡ API</button>
       </div>
+    </div>
+    <div class="tabrow">
+      ${['oggi','produzione','archivio'].map(v=>`<button class="tab${S.view===v?' on':''}" data-v="${v}">${v==='oggi'?'Oggi':v==='produzione'?'Produzione':'Archivio'}</button>`).join('')}
     </div>
   </div>`;
   document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{S.view=b.dataset.v;render();}));

@@ -871,11 +871,6 @@ function renderOggi(){
           <span id="fn-odg" style="font-family:var(--mono);font-size:11px;color:var(--mu2)"></span>
         </div>
       </div>
-      <div class="field">
-        <label class="lbl">Scene del giorno — testo sceneggiatura</label>
-        <textarea id="inp-scene" class="inp mono" rows="9" placeholder="Incolla le scene così come stanno nella sceneggiatura.&#10;Vengono riconosciute dagli stacchi INT. / EST.&#10;&#10;INT. APPARTAMENTO - NOTTE&#10;...&#10;&#10;EST. LUNGOTEVERE - NOTTE&#10;...">${esc(S.day.scene)}</textarea>
-        <div class="hint">Le scene vengono identificate dagli stacchi (INT./EST./SCENA). Ognuna è analizzata separatamente come farebbe un primo AC.</div>
-      </div>
       <div class="row">
         <button id="btn-go" class="btn" ${S.loading?'disabled':''}>${S.loading?'Analisi in corso…':S.mode==='manual'?'Prepara analisi →':'Analizza la giornata'}</button>
         ${S.mode==='api'&&!S.apiKey?`<span class="warn">⚠ Imposta la API key in Produzione → Impostazioni</span>`:''}
@@ -939,7 +934,6 @@ function renderOggi(){
   // Listeners
   document.getElementById('btn-go')?.addEventListener('click',()=>{
     S.day.data=document.getElementById('inp-data').value;
-    S.day.scene=document.getElementById('inp-scene').value;
     runDay();
   });
   document.getElementById('f-odg')?.addEventListener('change',async e=>{

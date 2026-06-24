@@ -234,6 +234,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 // ═══════════════════════════ STATE ════════════════════════════════════
 function today(){ return new Date().toISOString().slice(0,10); }
 
+function loadTodayDay(){
+  const t=today();
+  const saved=lsGet('ac.day.'+t,null);
+  return saved||{data:t,odg:'',scene:''};
+}
+
 const S={
   view:'oggi',
   apiKey: localStorage.getItem('ac.key')||'',
@@ -243,7 +249,7 @@ const S={
   memCurrentId: lsGet('ac.memCurrentId',null),
   memoria: null,            // puntatore alla versione corrente (impostato sotto)
   index:   lsGet('ac.index',  []),
-  day:     {data:today(),odg:'',scene:''},
+  day:     loadTodayDay(),
   analysis: null,
   loading:false, step:'', sub:'', error:'',
   memLoading:false, memStep:'', memError:'',
@@ -273,6 +279,7 @@ if(!S.docs.listamateriale){S.docs.listamateriale=null;lsSet('ac.docs',S.docs);}
 // ═══════════════════════════ STORAGE ══════════════════════════════════
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function saveDay(){lsSet('ac.day.'+S.day.data,S.day);}
 
 // ═══════════════════════════ PDF ══════════════════════════════════════
 async function extractText(file){
@@ -957,22 +964,28 @@ function renderOggi(){
   document.getElementById('btn-go')?.addEventListener('click',()=>{
     const dval=document.getElementById('inp-data').value;
     const parts=dval.match(/(\d+)-(\d+)-(\d+)/);
-    if(parts){const d=new Date(parts[3],parseInt(parts[2])-1,parseInt(parts[1]));S.day.data=d.toISOString().slice(0,10);}
+    if(parts){
+      saveDay();
+      const d=new Date(parts[3],parseInt(parts[2])-1,parseInt(parts[1]));
+      const newDate=d.toISOString().slice(0,10);
+      S.day=lsGet('ac.day.'+newDate,{data:newDate,odg:'',scene:''});
+    }
     runDay();
   });
   document.getElementById('f-odg')?.addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
     const el=document.getElementById('fn-odg');el.textContent='Estrazione…';
-    try{const t=await extractText(f);S.day.odg=t;render();}
+    try{const t=await extractText(f);S.day.odg=t;saveDay();render();}
     catch{el.textContent='✗ Errore PDF';}
   });
   document.getElementById('del-odg')?.addEventListener('click',()=>{
     S.day.odg='';
+    saveDay();
     render();
   });
   document.getElementById('btn-save')?.addEventListener('click',saveDay);
   document.getElementById('btn-print')?.addEventListener('click',()=>window.print());
-  document.getElementById('btn-reset')?.addEventListener('click',()=>{S.analysis=null;S.day.scene='';S.day.odg='';render();});
+  document.getElementById('btn-reset')?.addEventListener('click',()=>{S.analysis=null;S.day.scene='';S.day.odg='';saveDay();render();});
 }
 
 function renderProduzione(){

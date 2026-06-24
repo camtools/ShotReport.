@@ -736,6 +736,7 @@ function docRow(key,label){
         📄 ${d?'Sostituisci PDF':'Carica PDF'}
       </label>
       <span id="fn-${key}">${d?`<span class="doc-fn">✓ ${esc(d.nome)}</span>`:`<span style="font-family:var(--mono);font-size:11px;color:var(--mu2)">Non caricato</span>`}</span>
+      ${d?`<button id="del-${key}" class="doc-del-btn" style="background:none;border:none;color:var(--mu2);cursor:pointer;padding:0;font-size:14px;flex:none" title="Elimina PDF">✕</button>`:''}
     </div>
   </div>`;
 }
@@ -875,8 +876,9 @@ function renderOggi(){
       <div style="margin-bottom:18px">
         <label class="lbl">ODG del giorno</label>
         <div class="row" style="margin-bottom:0">
-          <label class="doc-btn"><input type="file" id="f-odg" accept=".pdf" style="display:none">📄 Carica PDF ODG</label>
-          <span id="fn-odg" style="font-family:var(--mono);font-size:11px;color:var(--mu2)"></span>
+          <label class="doc-btn"><input type="file" id="f-odg" accept=".pdf" style="display:none">📄 ${S.day.odg?'Sostituisci PDF ODG':'Carica PDF ODG'}</label>
+          <span id="fn-odg" style="font-family:var(--mono);font-size:11px;color:var(--mu2)">${S.day.odg?`<span style="color:var(--acc)">✓ PDF caricato</span>`:`<span style="color:var(--mu2)">Non caricato</span>`}</span>
+          ${S.day.odg?`<button id="del-odg" class="doc-del-btn" style="background:none;border:none;color:var(--mu2);cursor:pointer;padding:0;font-size:14px;flex:none" title="Elimina PDF">✕</button>`:''}
         </div>
       </div>
 
@@ -961,8 +963,12 @@ function renderOggi(){
   document.getElementById('f-odg')?.addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
     const el=document.getElementById('fn-odg');el.textContent='Estrazione…';
-    try{const t=await extractText(f);S.day.odg=t;el.textContent='✓ '+f.name;}
+    try{const t=await extractText(f);S.day.odg=t;render();}
     catch{el.textContent='✗ Errore PDF';}
+  });
+  document.getElementById('del-odg')?.addEventListener('click',()=>{
+    S.day.odg='';
+    render();
   });
   document.getElementById('btn-save')?.addEventListener('click',saveDay);
   document.getElementById('btn-print')?.addEventListener('click',()=>window.print());
@@ -1047,6 +1053,11 @@ function renderProduzione(){
       }catch{
         document.getElementById('fn-'+key).innerHTML='<span style="font-family:var(--mono);font-size:11px;color:var(--red)">✗ Errore lettura PDF</span>';
       }
+    });
+    document.getElementById('del-'+key)?.addEventListener('click',()=>{
+      S.docs[key]=null;
+      lsSet('ac.docs',S.docs);
+      render();
     });
   });
   document.getElementById('btn-memdocs')?.addEventListener('click',runDocs);

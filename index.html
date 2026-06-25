@@ -35,8 +35,8 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
 button{font-family:var(--sans);cursor:pointer}
 
 /* Layout */
-#topbar{position:sticky;top:0;z-index:40;background:rgba(16,17,19,.93);backdrop-filter:blur(14px);border-bottom:1px solid var(--b)}
-.tbar-inner{max-width:860px;margin:0 auto;padding:8px 18px}
+#topbar{position:sticky;top:0;z-index:40;background:rgba(16,17,19,.93);backdrop-filter:blur(14px);border-bottom:1px solid var(--b);padding-top:env(safe-area-inset-top)}
+.tbar-inner{max-width:860px;margin:0 auto;padding:16px 18px 12px}
 .shell{max-width:860px;margin:0 auto;padding:0 18px 90px}
 .brand{display:flex;align-items:center;gap:11px;margin-bottom:0}
 .bmark{width:40px;height:40px;border-radius:8px;border:1px solid var(--b2);flex:none;object-fit:cover;display:block;background:transparent;padding:0;margin:0}
@@ -1254,6 +1254,15 @@ function render(){
 }
 
 render();
+
+// Service Worker registration per aggiornamenti automatici
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    console.log('Service Worker registrato');
+  }).catch(err=>{
+    console.log('Service Worker registration fallito:', err);
+  });
+}
 </script>
 </body>
 </html>

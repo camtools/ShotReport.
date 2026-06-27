@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Shot Report · AI Assistant</title>
 <link rel="icon" href="icon.jpg" type="image/jpeg">
 <link rel="apple-touch-icon" href="icon.jpg">
@@ -230,6 +230,7 @@ button{font-family:var(--sans);cursor:pointer}
 }
 .print-head{display:none}
 @media(max-width:560px){.sgrid{grid-template-columns:1fr}.dmeta{gap:16px}}
+@media(max-width:768px){.inp,.bprompt,.bresp{font-size:16px}}
 
 /* Auth gate */
 #authgate{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}

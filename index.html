@@ -260,6 +260,8 @@ button{font-family:var(--sans);cursor:pointer}
 .ag-tab{flex:1;background:none;border:none;color:var(--mu);padding:9px 0;font-size:12.5px;font-weight:600;border-radius:8px;transition:background .12s,color .12s}
 .ag-tab.on{background:var(--acc);color:#15110b}
 .ag-spin{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--b2);border-top-color:var(--acc);margin:0 auto;animation:agspin .8s linear infinite}
+.ag-link{display:block;width:100%;text-align:center;background:none;border:none;color:var(--mu);font-size:12px;text-decoration:underline;cursor:pointer;margin-top:14px}
+.ag-link:hover{color:var(--tx)}
 @keyframes agspin{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -336,6 +338,9 @@ const SUPABASE_ANON_KEY='sb_publishable_51_XykRvGwexvVk3Y3JOIQ_XSriej4e';
 try{
   if(SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('YOUR_PROJECT')&&window.supabase){
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    sb.auth.onAuthStateChange((event)=>{
+      if(event==='PASSWORD_RECOVERY')renderAuthGate('recovery');
+    });
   }
 }catch(e){console.error('Supabase init falito, modalità locale:',e);}
 
@@ -402,11 +407,62 @@ function reloadStateFromStorage(){
   S.collapse=lsGet('ac.collapse',{attrezzatura:false,briefing:false,riassunto:false});
 }
 
-function renderAuthGate(view,err){
+function renderAuthGate(view,err,info){
   view=view||'login';
   const el=document.getElementById('authgate');
   if(!sb){el.style.display='none';return;}
   el.style.display='flex';
+
+  if(view==='recovery'){
+    el.innerHTML=`<div class="ag-box">
+      <img class="ag-logo" src="icon.jpg" alt="">
+      <div class="ag-title">Shot Report</div>
+      <div class="ag-sub">Imposta una nuova password</div>
+      <div class="field"><label class="lbl">Nuova password</label><input id="ag-pass" class="inp" type="password" placeholder="••••••••"></div>
+      <div class="field"><label class="lbl">Conferma password</label><input id="ag-pass2" class="inp" type="password" placeholder="••••••••"></div>
+      ${err?`<div class="err">${esc(err)}</div>`:''}
+      <button id="ag-submit" class="btn" style="width:100%;justify-content:center;margin-top:6px">Salva nuova password</button>
+    </div>`;
+    el.querySelector('#ag-submit').addEventListener('click',async()=>{
+      const p1=document.getElementById('ag-pass').value;
+      const p2=document.getElementById('ag-pass2').value;
+      if(!p1||p1.length<6){renderAuthGate('recovery','La password deve avere almeno 6 caratteri.');return;}
+      if(p1!==p2){renderAuthGate('recovery','Le due password non coincidono.');return;}
+      const btn=document.getElementById('ag-submit');btn.disabled=true;btn.textContent='Attendere…';
+      const{error}=await sb.auth.updateUser({password:p1});
+      if(error){renderAuthGate('recovery',error.message);return;}
+      const{data:{session}}=await sb.auth.getSession();
+      S.user=session?.user||null;
+      await pullFromCloud();
+      document.getElementById('authgate').style.display='none';
+      render();
+    });
+    return;
+  }
+
+  if(view==='reset'){
+    el.innerHTML=`<div class="ag-box">
+      <img class="ag-logo" src="icon.jpg" alt="">
+      <div class="ag-title">Shot Report</div>
+      <div class="ag-sub">Recupera la password</div>
+      <div class="field"><label class="lbl">Email</label><input id="ag-email" class="inp" type="email" placeholder="tu@esempio.com"></div>
+      ${err?`<div class="err">${esc(err)}</div>`:''}
+      ${info?`<div class="err" style="border-color:rgba(240,138,36,.5);background:rgba(240,138,36,.12)">${esc(info)}</div>`:''}
+      <button id="ag-submit" class="btn" style="width:100%;justify-content:center;margin-top:6px">Invia link di recupero</button>
+      <button id="ag-back" class="ag-link">← Torna al login</button>
+    </div>`;
+    el.querySelector('#ag-back').addEventListener('click',()=>renderAuthGate('login'));
+    el.querySelector('#ag-submit').addEventListener('click',async()=>{
+      const email=document.getElementById('ag-email').value.trim();
+      if(!email){renderAuthGate('reset','Inserisci la tua email.');return;}
+      const btn=document.getElementById('ag-submit');btn.disabled=true;btn.textContent='Attendere…';
+      const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+      if(error){renderAuthGate('reset',error.message);return;}
+      renderAuthGate('reset',null,'Controlla la tua email: ti abbiamo inviato un link per reimpostare la password.');
+    });
+    return;
+  }
+
   el.innerHTML=`<div class="ag-box">
     <img class="ag-logo" src="icon.jpg" alt="">
     <div class="ag-title">Shot Report</div>
@@ -419,8 +475,10 @@ function renderAuthGate(view,err){
     <div class="field"><label class="lbl">Password</label><input id="ag-pass" class="inp" type="password" placeholder="••••••••"></div>
     ${err?`<div class="err">${esc(err)}</div>`:''}
     <button id="ag-submit" class="btn" style="width:100%;justify-content:center;margin-top:6px">${view==='login'?'Accedi':'Crea account'}</button>
+    ${view==='login'?`<button id="ag-forgot" class="ag-link">Password dimenticata?</button>`:''}
   </div>`;
   el.querySelectorAll('.ag-tab').forEach(b=>b.addEventListener('click',()=>renderAuthGate(b.dataset.v)));
+  el.querySelector('#ag-forgot')?.addEventListener('click',()=>renderAuthGate('reset'));
   el.querySelector('#ag-submit').addEventListener('click',async()=>{
     const email=document.getElementById('ag-email').value.trim();
     const password=document.getElementById('ag-pass').value;
@@ -450,7 +508,13 @@ async function logout(){
 async function initAuth(){
   if(!sb){document.getElementById('authgate').style.display='none';return;}
   renderAuthLoading();
+  const isRecovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
   const{data:{session}}=await sb.auth.getSession();
+  if(isRecovery&&session){
+    history.replaceState(null,'',location.pathname+location.search);
+    renderAuthGate('recovery');
+    return;
+  }
   if(session){
     S.user=session.user;
     await pullFromCloud();

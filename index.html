@@ -251,6 +251,7 @@ button{font-family:var(--sans);cursor:pointer}
 <div id="bridge"></div>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let sb=null; // client Supabase, inizializzato più sotto — dichiarato qui per evitare riferimenti prematuri
 
 // ═══════════════════════════ STATE ════════════════════════════════════
 function today(){ return new Date().toISOString().slice(0,10); }
@@ -309,8 +310,11 @@ function saveDayState(){lsSet('ac.day.'+S.day.data,S.day);}
 // ═══════════════════════════ CLOUD SYNC (Supabase) ═════════════════════
 const SUPABASE_URL='https://suxyvzhskdnxaquxcmsb.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_51_XykRvGwexvVk3Y3JOIQ_XSriej4e';
-const sb=(SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('YOUR_PROJECT'))
-  ?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+try{
+  if(SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('YOUR_PROJECT')&&window.supabase){
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  }
+}catch(e){console.error('Supabase init falito, modalità locale:',e);}
 
 let pushTimer=null;
 function notifyChange(){

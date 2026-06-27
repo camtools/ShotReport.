@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#101113;--bg2:#17191c;--sf:#181a1d;--sf2:#23262b;
@@ -229,9 +230,22 @@ button{font-family:var(--sans);cursor:pointer}
 }
 .print-head{display:none}
 @media(max-width:560px){.sgrid{grid-template-columns:1fr}.dmeta{gap:16px}}
+
+/* Auth gate */
+#authgate{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+.ag-box{width:100%;max-width:380px}
+.ag-logo{width:52px;height:52px;border-radius:11px;border:1px solid var(--b2);display:block;margin:0 auto 18px;object-fit:cover}
+.ag-title{font-family:var(--disp);font-size:19px;font-weight:700;text-align:center;margin-bottom:4px}
+.ag-sub{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mu);text-align:center;margin-bottom:26px}
+.ag-tabs{display:flex;gap:2px;margin-bottom:18px;background:var(--sf2);border-radius:10px;padding:3px}
+.ag-tab{flex:1;background:none;border:none;color:var(--mu);padding:9px 0;font-size:12.5px;font-weight:600;border-radius:8px;transition:background .12s,color .12s}
+.ag-tab.on{background:var(--acc);color:#15110b}
+.ag-spin{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--b2);border-top-color:var(--acc);margin:0 auto;animation:agspin .8s linear infinite}
+@keyframes agspin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
+<div id="authgate"></div>
 <div id="topbar"></div>
 <div id="main"></div>
 <div id="bridge"></div>
@@ -267,6 +281,7 @@ const S={
   mode: localStorage.getItem('ac.mode')||'manual',  // 'api' | 'manual'
   bridge:null,              // ponte copia-incolla manuale verso claude.ai
   usage: lsGet('ac.usage',{session:{inputTokens:0,outputTokens:0,cost:0},daily:{}}),  // track token usage
+  user: null,                // utente autenticato (sync cloud)
 };
 
 // Migrazione dal vecchio formato a versione singola → archivio versioni
@@ -288,8 +303,114 @@ if(!S.docs.listamateriale){S.docs.listamateriale=null;lsSet('ac.docs',S.docs);}
 
 // ═══════════════════════════ STORAGE ══════════════════════════════════
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
-function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{} notifyChange();}
 function saveDayState(){lsSet('ac.day.'+S.day.data,S.day);}
+
+// ═══════════════════════════ CLOUD SYNC (Supabase) ═════════════════════
+const SUPABASE_URL='https://suxyvzhskdnxaquxcmsb.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_51_XykRvGwexvVk3Y3JOIQ_XSriej4e';
+const sb=(SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('YOUR_PROJECT'))
+  ?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+
+let pushTimer=null;
+function notifyChange(){
+  if(!sb||!S.user)return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(pushToCloud,1200);
+}
+function collectLocalData(){
+  const data={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('ac.'))data[k]=localStorage.getItem(k);
+  }
+  return data;
+}
+async function pushToCloud(){
+  if(!sb||!S.user)return;
+  const data=collectLocalData();
+  await sb.from('app_data').upsert({user_id:S.user.id,data,updated_at:new Date().toISOString()});
+}
+async function pullFromCloud(){
+  if(!sb||!S.user)return;
+  const{data:row}=await sb.from('app_data').select('data').eq('user_id',S.user.id).maybeSingle();
+  if(row&&row.data){
+    Object.entries(row.data).forEach(([k,v])=>{try{localStorage.setItem(k,v);}catch{}});
+  }
+  reloadStateFromStorage();
+}
+function reloadStateFromStorage(){
+  S.apiKey=localStorage.getItem('ac.key')||'';
+  S.profile=lsGet('ac.profile',{nome:'',gear:'',note:'',type:'film'});
+  S.docs=lsGet('ac.docs',{sceneggiatura:null,spoglio:null,pdl:null,listamateriale:null,sceneggiature:[]});
+  S.memVersions=lsGet('ac.memVersions',[]);
+  S.memCurrentId=lsGet('ac.memCurrentId',null);
+  S.memoria=S.memVersions.find(v=>v.id===S.memCurrentId)||S.memVersions[0]||null;
+  if(S.memoria)S.memCurrentId=S.memoria.id;
+  S.index=lsGet('ac.index',[]);
+  S.day=loadTodayDay();
+  S.mode=localStorage.getItem('ac.mode')||'manual';
+  S.usage=lsGet('ac.usage',{session:{inputTokens:0,outputTokens:0,cost:0},daily:{}});
+}
+
+function renderAuthGate(view,err){
+  view=view||'login';
+  const el=document.getElementById('authgate');
+  if(!sb){el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML=`<div class="ag-box">
+    <img class="ag-logo" src="icon.jpg" alt="">
+    <div class="ag-title">Shot Report</div>
+    <div class="ag-sub">Accedi per sincronizzare i tuoi dati</div>
+    <div class="ag-tabs">
+      <button class="ag-tab ${view==='login'?'on':''}" data-v="login">Accedi</button>
+      <button class="ag-tab ${view==='signup'?'on':''}" data-v="signup">Registrati</button>
+    </div>
+    <div class="field"><label class="lbl">Email</label><input id="ag-email" class="inp" type="email" placeholder="tu@esempio.com"></div>
+    <div class="field"><label class="lbl">Password</label><input id="ag-pass" class="inp" type="password" placeholder="••••••••"></div>
+    ${err?`<div class="err">${esc(err)}</div>`:''}
+    <button id="ag-submit" class="btn" style="width:100%;justify-content:center;margin-top:6px">${view==='login'?'Accedi':'Crea account'}</button>
+  </div>`;
+  el.querySelectorAll('.ag-tab').forEach(b=>b.addEventListener('click',()=>renderAuthGate(b.dataset.v)));
+  el.querySelector('#ag-submit').addEventListener('click',async()=>{
+    const email=document.getElementById('ag-email').value.trim();
+    const password=document.getElementById('ag-pass').value;
+    if(!email||!password){renderAuthGate(view,'Inserisci email e password.');return;}
+    const btn=document.getElementById('ag-submit');btn.disabled=true;btn.textContent='Attendere…';
+    const fn=view==='login'?sb.auth.signInWithPassword({email,password}):sb.auth.signUp({email,password});
+    const{data,error}=await fn;
+    if(error){renderAuthGate(view,error.message);return;}
+    if(view==='signup'&&!data.session){renderAuthGate('login','Account creato. Controlla l\'email per confermare, poi accedi.');return;}
+    S.user=data.session?.user||data.user;
+    await pullFromCloud();
+    document.getElementById('authgate').style.display='none';
+    render();
+  });
+}
+function renderAuthLoading(){
+  const el=document.getElementById('authgate');
+  el.style.display='flex';
+  el.innerHTML=`<div class="ag-box" style="text-align:center"><div class="ag-spin"></div></div>`;
+}
+async function logout(){
+  if(!sb)return;
+  await sb.auth.signOut();
+  S.user=null;
+  location.reload();
+}
+async function initAuth(){
+  if(!sb){document.getElementById('authgate').style.display='none';return;}
+  renderAuthLoading();
+  const{data:{session}}=await sb.auth.getSession();
+  if(session){
+    S.user=session.user;
+    await pullFromCloud();
+    document.getElementById('authgate').style.display='none';
+    render();
+  }else{
+    renderAuthGate('login');
+  }
+}
 
 function trackUsage(inputTokens,outputTokens){
   const cost=inputTokens*PRICING.inputCost+outputTokens*PRICING.outputCost;
@@ -629,7 +750,7 @@ function openBridge(kind,sys,msg,extra){
 }
 function closeBridge(){S.bridge=null;render();}
 function setMode(m){
-  S.mode=m;localStorage.setItem('ac.mode',m);
+  S.mode=m;localStorage.setItem('ac.mode',m);notifyChange();
   if(m==='api')S.bridge=null;
   render();
 }
@@ -1205,7 +1326,7 @@ function renderProduzione(){
   });
   document.getElementById('btn-skey')?.addEventListener('click',()=>{
     S.apiKey=document.getElementById('inp-key').value.trim();
-    localStorage.setItem('ac.key',S.apiKey);
+    localStorage.setItem('ac.key',S.apiKey);notifyChange();
     const el=document.getElementById('key-ok');el.style.display='inline-flex';
     setTimeout(()=>{el.style.display='none';render();},1500);
   });
@@ -1213,6 +1334,20 @@ function renderProduzione(){
 
 function renderImpostazioni(){
   let h=`<div class="shell">`;
+
+  if(sb){
+    h+=`<div class="sec">
+      <div class="sectit"><h2>Account</h2></div>
+      <div class="card" style="padding:18px">
+        <div class="row">
+          <span style="font-size:13px;color:var(--tx2)">${S.user?esc(S.user.email):'—'}</span>
+          <span class="spacer"></span>
+          <button id="btn-logout" class="btn ghost sm">Esci</button>
+        </div>
+        <div class="hint" style="margin-top:10px">I tuoi dati (API key, profilo, archivio, statistiche) sono sincronizzati su questo account: accedi con le stesse credenziali su qualsiasi dispositivo per ritrovarli.</div>
+      </div>
+    </div>`;
+  }
 
   // Usage section
   const dailyUsage=Object.entries(S.usage.daily).sort(([a],[b])=>b.localeCompare(a)).slice(0,30);
@@ -1283,7 +1418,7 @@ function renderImpostazioni(){
 
   document.getElementById('btn-skey')?.addEventListener('click',()=>{
     S.apiKey=document.getElementById('inp-key').value.trim();
-    localStorage.setItem('ac.key',S.apiKey);
+    localStorage.setItem('ac.key',S.apiKey);notifyChange();
     const el=document.getElementById('key-ok');el.style.display='inline-flex';
     setTimeout(()=>{el.style.display='none';render();},1500);
   });
@@ -1294,6 +1429,10 @@ function renderImpostazioni(){
       lsSet('ac.usage',S.usage);
       render();
     }
+  });
+
+  document.getElementById('btn-logout')?.addEventListener('click',()=>{
+    if(confirm('Uscire dall\'account? Potrai accedere di nuovo con le stesse credenziali su qualsiasi dispositivo.'))logout();
   });
 }
 
@@ -1328,6 +1467,7 @@ function render(){
 }
 
 render();
+initAuth();
 
 // Service Worker registration per aggiornamenti automatici
 if('serviceWorker' in navigator){

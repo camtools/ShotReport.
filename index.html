@@ -136,9 +136,9 @@ button{font-family:var(--sans);cursor:pointer}
 .mem-text{font-size:14px;line-height:1.6;color:var(--tx2);white-space:pre-wrap}
 
 /* Collapsible sections */
-.collapse-h{cursor:pointer;user-select:none;justify-content:space-between}
+.collapse-h{cursor:pointer;user-select:none;justify-content:space-between;align-items:center}
 .collapse-h .n{margin-right:auto}
-.collapse-arrow{font-size:20px;line-height:1;color:var(--mu2);transition:transform .18s ease;flex:none}
+.collapse-arrow{font-size:30px;line-height:1;color:var(--mu2);transition:transform .18s ease;flex:none}
 .collapse-arrow.open{transform:rotate(180deg)}
 
 /* Riassunto sceneggiatura */
@@ -307,7 +307,7 @@ const S={
   syncStatus:'idle', syncError:'', lastSyncAt:null,
   riassunto: lsGet('ac.riassunto',null),
   riassuntoLoading:false, riassuntoError:'',
-  collapse: lsGet('ac.collapse',{attrezzatura:false,briefing:false,riassunto:false}),
+  collapse: lsGet('ac.collapse',{attrezzatura:true,briefing:true,riassunto:true,cronologia:true}),
 };
 
 // Migrazione dal vecchio formato a versione singola → archivio versioni
@@ -404,7 +404,7 @@ function reloadStateFromStorage(){
   S.mode=localStorage.getItem('ac.mode')||'manual';
   S.usage=lsGet('ac.usage',{session:{inputTokens:0,outputTokens:0,cost:0},daily:{}});
   S.riassunto=lsGet('ac.riassunto',null);
-  S.collapse=lsGet('ac.collapse',{attrezzatura:false,briefing:false,riassunto:false});
+  S.collapse=lsGet('ac.collapse',{attrezzatura:true,briefing:true,riassunto:true,cronologia:true});
 }
 
 function renderAuthGate(view,err,info){
@@ -1125,11 +1125,14 @@ function versionHistoryHTML(){
       </div>
     </div>`;
   }).join('');
+  const open=!!S.collapse.cronologia;
   return`<div class="sec">
-    <div class="sectit"><h2>Cronologia versioni</h2><span class="n">${S.memVersions.length} ${S.memVersions.length===1?'versione':'versioni'}</span></div>
-    ${rows}
-    ${compareHTML()}
-    <div class="hint" style="margin-top:4px">Ogni volta che premi <b>Analizza e memorizza</b> viene salvata una nuova versione. <b>Usa</b> rende corrente una versione (anche tornando indietro). <b>Confronta</b> mostra cosa è cambiato rispetto alla versione precedente. Le giornate in archivio ricordano con quale versione sono state analizzate.</div>
+    <div class="sectit collapse-h" data-collapse="cronologia"><h2>Cronologia versioni</h2><span class="n">${S.memVersions.length} ${S.memVersions.length===1?'versione':'versioni'}</span><span class="collapse-arrow ${open?'open':''}">▾</span></div>
+    <div id="body-cronologia" style="display:${open?'block':'none'}">
+      ${rows}
+      ${compareHTML()}
+      <div class="hint" style="margin-top:4px">Ogni volta che premi <b>Analizza e memorizza</b> viene salvata una nuova versione. <b>Usa</b> rende corrente una versione (anche tornando indietro). <b>Confronta</b> mostra cosa è cambiato rispetto alla versione precedente. Le giornate in archivio ricordano con quale versione sono state analizzate.</div>
+    </div>
   </div>`;
 }
 function diffLine(cls,sym,scn,txt){

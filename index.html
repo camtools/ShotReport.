@@ -283,6 +283,7 @@ const S={
   bridge:null,              // ponte copia-incolla manuale verso claude.ai
   usage: lsGet('ac.usage',{session:{inputTokens:0,outputTokens:0,cost:0},daily:{}}),  // track token usage
   user: null,                // utente autenticato (sync cloud)
+  syncStatus:'idle', syncError:'', lastSyncAt:null,
 };
 
 // Migrazione dal vecchio formato a versione singola → archivio versioni
@@ -320,7 +321,13 @@ let pushTimer=null;
 function notifyChange(){
   if(!sb||!S.user)return;
   clearTimeout(pushTimer);
-  pushTimer=setTimeout(pushToCloud,1200);
+  pushTimer=setTimeout(pushToCloud,600);
+}
+function flushPush(){
+  if(!sb||!S.user||!pushTimer)return;
+  clearTimeout(pushTimer);
+  pushTimer=null;
+  pushToCloud();
 }
 function collectLocalData(){
   const data={};
@@ -332,17 +339,31 @@ function collectLocalData(){
 }
 async function pushToCloud(){
   if(!sb||!S.user)return;
+  S.syncStatus='syncing';
   const data=collectLocalData();
-  await sb.from('app_data').upsert({user_id:S.user.id,data,updated_at:new Date().toISOString()});
+  const{error}=await sb.from('app_data').upsert({user_id:S.user.id,data,updated_at:new Date().toISOString()});
+  if(error){S.syncStatus='error';S.syncError=error.message;console.error('Push cloud fallito:',error);}
+  else{S.syncStatus='synced';S.lastSyncAt=new Date();}
 }
 async function pullFromCloud(){
   if(!sb||!S.user)return;
-  const{data:row}=await sb.from('app_data').select('data').eq('user_id',S.user.id).maybeSingle();
+  const{data:row,error}=await sb.from('app_data').select('data').eq('user_id',S.user.id).maybeSingle();
+  if(error){S.syncStatus='error';S.syncError=error.message;console.error('Pull cloud fallito:',error);return;}
   if(row&&row.data){
     Object.entries(row.data).forEach(([k,v])=>{try{localStorage.setItem(k,v);}catch{}});
   }
   reloadStateFromStorage();
+  S.syncStatus='synced';S.lastSyncAt=new Date();
 }
+document.addEventListener('visibilitychange',()=>{
+  if(!sb||!S.user)return;
+  if(document.visibilityState==='hidden'){
+    flushPush();
+  }else if(document.visibilityState==='visible'){
+    pullFromCloud().then(render);
+  }
+});
+window.addEventListener('pagehide',flushPush);
 function reloadStateFromStorage(){
   S.apiKey=localStorage.getItem('ac.key')||'';
   S.profile=lsGet('ac.profile',{nome:'',gear:'',note:'',type:'film'});
@@ -1340,6 +1361,10 @@ function renderImpostazioni(){
   let h=`<div class="shell">`;
 
   if(sb){
+    const syncLabel=S.syncStatus==='syncing'?'Sincronizzazione…':
+      S.syncStatus==='error'?'Errore di sincronizzazione':
+      S.lastSyncAt?'Sincronizzato alle '+S.lastSyncAt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):
+      'In attesa di sincronizzazione';
     h+=`<div class="sec">
       <div class="sectit"><h2>Account</h2></div>
       <div class="card" style="padding:18px">
@@ -1349,6 +1374,12 @@ function renderImpostazioni(){
           <button id="btn-logout" class="btn ghost sm">Esci</button>
         </div>
         <div class="hint" style="margin-top:10px">I tuoi dati (API key, profilo, archivio, statistiche) sono sincronizzati su questo account: accedi con le stesse credenziali su qualsiasi dispositivo per ritrovarli.</div>
+        <div class="row" style="margin-top:12px">
+          <span style="font-size:11.5px;color:${S.syncStatus==='error'?'var(--err,#e05)':'var(--mu)'}">${esc(syncLabel)}</span>
+          <span class="spacer"></span>
+          <button id="btn-syncnow" class="btn ghost sm">Sincronizza ora</button>
+        </div>
+        ${S.syncStatus==='error'?`<div class="hint" style="margin-top:6px;color:var(--err,#e05)">${esc(S.syncError||'')}</div>`:''}
       </div>
     </div>`;
   }
@@ -1437,6 +1468,12 @@ function renderImpostazioni(){
 
   document.getElementById('btn-logout')?.addEventListener('click',()=>{
     if(confirm('Uscire dall\'account? Potrai accedere di nuovo con le stesse credenziali su qualsiasi dispositivo.'))logout();
+  });
+
+  document.getElementById('btn-syncnow')?.addEventListener('click',async()=>{
+    flushPush();
+    await pullFromCloud();
+    render();
   });
 }
 

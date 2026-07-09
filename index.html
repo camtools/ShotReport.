@@ -1245,6 +1245,12 @@ function renderOggi(){
         </div>
       </div>
 
+      <!-- Scene textarea -->
+      <div style="margin-bottom:18px">
+        <label class="lbl">Scene della giornata</label>
+        <textarea id="ta-scene" class="inp" rows="6" placeholder="Incolla le scene dalla sceneggiatura (es. INT. CASA - GIORNO…) oppure carica il PDF ODG sopra.">${esc(S.day.scene)}</textarea>
+      </div>
+
       <!-- Action button -->
       <div style="margin-bottom:18px">
         <button id="btn-go" class="btn" ${S.loading?'disabled':''}>${S.loading?'Analisi in corso…':S.mode==='manual'?'Prepara analisi →':'Analizza la giornata'}</button>
@@ -1319,6 +1325,7 @@ function renderOggi(){
   // Listeners
   document.getElementById('btn-go')?.addEventListener('click',()=>{
     const dval=document.getElementById('inp-data').value;
+    S.day.scene=document.getElementById('ta-scene')?.value||'';
     const parts=dval.match(/(\d+)-(\d+)-(\d+)/);
     if(parts){
       saveDayState();
@@ -1331,13 +1338,17 @@ function renderOggi(){
   document.getElementById('f-odg')?.addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
     const el=document.getElementById('fn-odg');el.textContent='Estrazione…';
-    try{const t=await extractText(f);S.day.odg=t;saveDayState();render();}
+    try{const t=await extractText(f);S.day.odg=t;if(!S.day.scene.trim())S.day.scene=t;saveDayState();render();}
     catch{el.textContent='✗ Errore PDF';}
   });
   document.getElementById('del-odg')?.addEventListener('click',()=>{
+    if(!S.day.scene.trim()||S.day.scene.trim()===S.day.odg.trim())S.day.scene='';
     S.day.odg='';
     saveDayState();
     render();
+  });
+  document.getElementById('ta-scene')?.addEventListener('input',()=>{
+    S.day.scene=document.getElementById('ta-scene').value;saveDayState();
   });
   document.getElementById('btn-save')?.addEventListener('click',saveDay);
   document.getElementById('btn-print')?.addEventListener('click',()=>window.print());

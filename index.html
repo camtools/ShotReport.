@@ -277,7 +277,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 let sb=null; // client Supabase, inizializzato più sotto — dichiarato qui per evitare riferimenti prematuri
 
 // ═══════════════════════════ STATE ════════════════════════════════════
-function today(){ return new Date().toISOString().slice(0,10); }
+function today(){ const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 
 function loadTodayDay(){
   const t=today();
@@ -1328,11 +1328,13 @@ function renderOggi(){
     S.day.scene=document.getElementById('ta-scene')?.value||'';
     const parts=dval.match(/(\d+)-(\d+)-(\d+)/);
     if(parts){
-      saveDayState();
-      const d=new Date(parts[3],parseInt(parts[2])-1,parseInt(parts[1]));
-      const newDate=d.toISOString().slice(0,10);
-      S.day=lsGet('ac.day.'+newDate,{data:newDate,odg:'',scene:''});
+      const newDate=`${parts[3]}-${parts[2].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+      if(newDate!==S.day.data){
+        saveDayState();
+        S.day=lsGet('ac.day.'+newDate,{data:newDate,odg:'',scene:''});
+      }
     }
+    saveDayState();
     runDay();
   });
   document.getElementById('f-odg')?.addEventListener('change',async e=>{

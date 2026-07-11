@@ -290,7 +290,7 @@ const PRICING={inputCost:0.000003,outputCost:0.000015};
 const S={
   view:'oggi',
   apiKey: localStorage.getItem('ac.key')||'',
-  profile: lsGet('ac.profile',{nome:'',gear:'',note:'',type:'film'}),
+  profile: lsGet('ac.profile',{nome:'',gear:'',note:'',type:'film',ruolo:''}),
   docs:    lsGet('ac.docs',   {sceneggiatura:null,spoglio:null,pdl:null,listamateriale:null,sceneggiature:[]}),
   memVersions: lsGet('ac.memVersions',[]),
   memCurrentId: lsGet('ac.memCurrentId',null),
@@ -395,7 +395,7 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('pagehide',flushPush);
 function reloadStateFromStorage(){
   S.apiKey=localStorage.getItem('ac.key')||'';
-  S.profile=lsGet('ac.profile',{nome:'',gear:'',note:'',type:'film'});
+  S.profile=lsGet('ac.profile',{nome:'',gear:'',note:'',type:'film',ruolo:''});
   S.docs=lsGet('ac.docs',{sceneggiatura:null,spoglio:null,pdl:null,listamateriale:null,sceneggiature:[]});
   S.memVersions=lsGet('ac.memVersions',[]);
   S.memCurrentId=lsGet('ac.memCurrentId',null);
@@ -569,7 +569,7 @@ async function claude(sys,usr,maxT=2000){
       'anthropic-dangerous-direct-browser-access':'true'
     },
     body:JSON.stringify({
-      model:'claude-sonnet-4-6',
+      model:'claude-sonnet-5',
       max_tokens:maxT,
       system:sys,
       messages:[{role:'user',content:usr}]
@@ -589,40 +589,40 @@ function parseJSON(t){
 }
 
 // ═══════════════════════════ PROMPTS ══════════════════════════════════
-const SYS_DOCS=`Sei un primo assistente operatore (focus puller) esperto del cinema italiano con vent'anni di set.
-Analizza i documenti di produzione forniti ESCLUSIVAMENTE dal punto di vista del reparto macchina e della messa a fuoco.
-Rispondi SOLO con JSON valido, nessun testo prima o dopo:
-{"briefing":"quadro complessivo produzione per reparto macchina, max 1500 chars — sfide principali fuoco, scene critiche, condizioni particolari (pioggia/notte/handheld/fumo/fuoco vivo/specchi/schermi/barca/periodo storico/VFX), note operative essenziali","scene_chiave":[{"sc":"numero o rif.","desc":"3-4 parole","crit":"alta|media|bassa","nota":"nota fuoco sintetica"}],"pdl_summary":"sintesi piano di lavorazione — quanti giorni, ritmo, scene per giorno se desumibile, max 400 chars","rischi":["rischi tecnici principali per il reparto macchina — max 6 voci concise"]}`;
+const RUOLI_LISTA=['Primo assistente operatore','Operatore','DOP / Direttore della fotografia','Macchinista','Elettricista','Fonico','Aiuto regia','Segretaria di edizione','Direttore di produzione','Ispettore di produzione','Scenografo','Costumista','Truccatore','VFX Supervisor'];
+function ruoloLabel(){return S.profile.ruolo||'professionista del set';}
+function sysPreamble(){return `Sei un ${ruoloLabel()} esperto del cinema italiano, vent'anni di esperienza su set di lungometraggi e serie. Rispondi dal punto di vista specifico del tuo ruolo. Sii CONCISO e OPERATIVO: frasi corte, gergo da set, zero fuffa. Ogni voce deve essere un'azione o un fatto, non una spiegazione.`;}
 
-const SYS_SCENE=`Sei un primo assistente operatore (focus puller) del cinema italiano, vent'anni di set su lungometraggi e serie.
-Analizzi UNA scena dal punto di vista del reparto macchina e della messa a fuoco.
-Se nel contesto è presente un briefing di produzione (delimitato da ━━), usalo per arricchire l'analisi con riferimenti specifici a quella produzione.
-Valuta: difficoltà fuoco (soggetti in movimento, rack focus, doppi piani, stima distanza), profondità di campo, scelta ottiche, condizioni (acqua/pioggia, notte, handheld/spalla, fumo, fuoco vivo, sangue/effetti, specchi nel blocking, schermi telefono/monitor, barca/mezzi, époque), sync wireless, autonomia batterie, sicurezza.
-Rispondi SOLO con JSON valido, nessun testo prima o dopo:
-{"criticita":"alta|media|bassa","titolo_breve":"3-6 parole","sintesi":"1-2 frasi: cosa succede e perché impatta fuoco/macchina","gear":["max 5 voci brevi"],"anticipa":["max 5 cose da preparare/provare/chiedere prima di girare"],"note_tecniche":["marche, T-stop, profondità di campo, sync, batterie, rischi concreti — max 5 voci"]}`;
+const SYS_DOCS=()=>`${sysPreamble()}
+Analizza i documenti di produzione dal punto di vista del tuo ruolo.
+Rispondi SOLO con JSON valido:
+{"briefing":"quadro produzione per il tuo reparto, max 800 chars — sfide, scene critiche, condizioni particolari, note operative","scene_chiave":[{"sc":"numero","desc":"3-4 parole","crit":"alta|media|bassa","nota":"nota sintetica"}],"pdl_summary":"sintesi PDL — giorni, ritmo, max 300 chars","rischi":["rischi tecnici per il tuo reparto — max 4 voci, una riga ciascuna"]}`;
 
-const SYS_DAY=`Sei un primo assistente operatore (focus puller) del cinema italiano.
-Hai analizzato le singole scene della giornata. Ora dai il quadro d'insieme per il reparto macchina, come faresti col tuo operatore a inizio giornata.
-Se nel contesto è presente un briefing di produzione, citalo dove pertinente.
-Rispondi SOLO con JSON valido, nessun testo prima o dopo:
-{"overview":"3-5 frasi: ritmo e peso della giornata, sfide principali del fuoco, considerazioni sull'ordine e i tempi","criticita_globale":"alta|media|bassa","checklist":["cose trasversali da avere pronte a inizio giornata — max 6 voci"],"anticipa":["da fare il giorno prima o nei tempi morti — max 5 voci"],"domande":["domande precise da porre a operatore/DoP/regia/produzione per non sbagliare — max 6 voci"]}`;
+const SYS_SCENE=()=>`${sysPreamble()}
+Analizzi UNA scena. Se c'è un briefing produzione (delimitato da ━━), usalo.
+Rispondi SOLO con JSON valido:
+{"criticita":"alta|media|bassa","titolo_breve":"3-5 parole","sintesi":"1 frase secca: cosa succede e perché ti riguarda","gear":["max 3 — cosa ti serve"],"anticipa":["max 3 — cosa preparare/chiedere prima"],"note_tecniche":["max 3 — rischi concreti, una riga ciascuna"]}`;
 
-const SYS_DIFF=`Sei un primo assistente operatore (focus puller) esperto. Ti vengono date due versioni della memoria di produzione — una PRECEDENTE e una NUOVA — perché qualcosa è cambiato nella sceneggiatura o nel piano di lavorazione durante la produzione.
-Spiega in modo conciso e operativo COSA È CAMBIATO che impatta il reparto macchina e la messa a fuoco, e cosa devi tenere d'occhio di conseguenza (scene diventate più critiche, nuovi rischi, nuove condizioni, scene rimosse).
-Niente JSON, niente elenchi puntati: testo scorrevole in italiano, max 6-7 frasi, diretto, tono da set. Se i cambiamenti sono minimi o solo formali, dillo chiaramente.`;
+const SYS_DAY=()=>`${sysPreamble()}
+Hai analizzato le scene della giornata. Dai il quadro d'insieme come faresti col tuo capo reparto a inizio giornata.
+Rispondi SOLO con JSON valido:
+{"overview":"2-3 frasi secche: ritmo della giornata, sfide principali, priorità","criticita_globale":"alta|media|bassa","checklist":["pronto a inizio giornata — max 4 voci"],"anticipa":["da fare prima o nei tempi morti — max 3"],"domande":["domande precise per i reparti coinvolti — max 4"]}`;
 
-const SYS_DAY_ALL=`Sei un primo assistente operatore (focus puller) del cinema italiano, vent'anni di set.
-Ti vengono date TUTTE le scene di una giornata di lavorazione. Analizzale una per una dal punto di vista del reparto macchina e della messa a fuoco, poi dai il quadro d'insieme della giornata.
-Se nel contesto è presente un briefing di produzione (delimitato da ━━), usalo per riferimenti specifici alla produzione.
-Per ogni scena valuta: difficoltà fuoco (movimento, rack focus, doppi piani, stima distanza), profondità di campo, ottiche, condizioni (acqua/pioggia, notte, handheld/spalla, fumo, fuoco vivo, sangue/effetti, specchi, schermi, barca/mezzi, époque), sync wireless, autonomia batterie, sicurezza.
+const SYS_DIFF=()=>`${sysPreamble()}
+Ti vengono date due versioni della memoria di produzione (PRECEDENTE e NUOVA).
+Spiega COSA È CAMBIATO che impatta il tuo reparto e cosa tenere d'occhio. Max 4-5 frasi, diretto, tono da set. Niente JSON, niente elenchi puntati. Se i cambiamenti sono minimi, dillo in una riga.`;
+
+const SYS_DAY_ALL=()=>`${sysPreamble()}
+Analizza TUTTE le scene della giornata dal punto di vista del tuo ruolo, poi dai il quadro d'insieme.
+Se c'è un briefing produzione (delimitato da ━━), usalo.
 IMPORTANTE: l'array "scene" deve avere ESATTAMENTE un elemento per ogni scena fornita, NELLO STESSO ORDINE.
-Rispondi SOLO con JSON valido, nessun testo prima o dopo:
-{"scene":[{"criticita":"alta|media|bassa","titolo_breve":"3-6 parole","sintesi":"1-2 frasi","gear":["max 5"],"anticipa":["max 5"],"note_tecniche":["max 5"]}],"quadro":{"overview":"3-5 frasi sul ritmo e le sfide della giornata","criticita_globale":"alta|media|bassa","checklist":["max 6"],"anticipa":["max 5"],"domande":["domande per operatore/DoP/regia — max 6"]}}`;
+Rispondi SOLO con JSON valido:
+{"scene":[{"criticita":"alta|media|bassa","titolo_breve":"3-5 parole","sintesi":"1 frase secca","gear":["max 3"],"anticipa":["max 3"],"note_tecniche":["max 3"]}],"quadro":{"overview":"2-3 frasi secche","criticita_globale":"alta|media|bassa","checklist":["max 4"],"anticipa":["max 3"],"domande":["max 4"]}}`;
 
-const SYS_RIASSUNTO=`Sei un primo assistente operatore (focus puller) e script reader del cinema italiano.
-Ti viene fornita una sceneggiatura. Crea un riassunto chiaro e leggibile, utile a chi deve prepararsi alla produzione senza aver letto tutta la sceneggiatura.
-Rispondi SOLO con JSON valido, nessun testo prima o dopo:
-{"titolo":"titolo dell'opera se deducibile dal testo, altrimenti stringa vuota","logline":"1-2 frasi che riassumono la storia","sinossi":"riassunto in prosa della trama, diviso in paragrafi separati da \\n\\n, scorrevole e completo (max 3500 caratteri)","personaggi":[{"nome":"...","ruolo":"breve descrizione del personaggio e del suo arco narrativo"}],"struttura":["blocchi narrativi principali / atti, in ordine, max 6 voci brevi"]}`;
+const SYS_RIASSUNTO=`Sei uno script reader esperto del cinema italiano.
+Crea un riassunto chiaro e utile per chi deve prepararsi alla produzione senza aver letto la sceneggiatura.
+Rispondi SOLO con JSON valido:
+{"titolo":"titolo se deducibile, altrimenti stringa vuota","logline":"1 frase che riassume la storia","sinossi":"riassunto in prosa, diviso in paragrafi (\\n\\n), max 2500 caratteri","personaggi":[{"nome":"...","ruolo":"chi è e cosa fa, una riga"}],"struttura":["blocchi narrativi / atti, max 5 voci brevi"]}`;
 
 // ═══════════════════════════ UTILS ════════════════════════════════════
 const NORM=c=>{const v=(c||'').toLowerCase();return v.startsWith('a')?'alta':v.startsWith('m')?'media':'bassa';};
@@ -669,6 +669,7 @@ function histCtx(){
 }
 function prodCtx(){
   let c='';
+  if(S.profile.ruolo)c+=`RUOLO: ${S.profile.ruolo}\n`;
   if(S.profile.nome)c+=`PRODUZIONE: ${S.profile.nome}\n`;
   if(S.profile.gear)c+=`\nMEZZI / ATTREZZATURA:\n${S.profile.gear}\n`;
   if(S.profile.note)c+=`\nNOTE PRODUZIONE:\n${S.profile.note}\n`;
@@ -723,10 +724,10 @@ async function runDocs(){
   const hasSceneggiatura=S.profile.type==='film'?S.docs.sceneggiatura:(S.docs.sceneggiature?.length>0);
   if(!hasSceneggiatura&&!S.docs.spoglio&&!S.docs.pdl){S.memError='Carica almeno un documento prima di analizzare.';render();return;}
   const msg=buildDocsMsg();
-  if(S.mode==='manual'){openBridge('docs',SYS_DOCS,msg);return;}
+  if(S.mode==='manual'){openBridge('docs',SYS_DOCS(),msg);return;}
   S.memLoading=true;S.memError='';S.memStep='Analisi documenti in corso…';render();
   try{
-    const raw=await claude(SYS_DOCS,msg,3000);
+    const raw=await claude(SYS_DOCS(),msg,3000);
     applyDocsResult(parseJSON(raw));S.memStep='';
   }catch(e){S.memError='Analisi non riuscita: '+(e.message||'errore sconosciuto');}
   finally{S.memLoading=false;render();}
@@ -791,11 +792,11 @@ async function runDay(){
   if(S.mode==='manual'){
     const msg=base+`\n\nODG / NOTE DEL GIORNO:\n${S.day.odg||'(non fornito)'}\n\nSCENE DELLA GIORNATA (${scenes.length}) — analizzale tutte, una entry per scena nello stesso ordine:\n`+
       scenes.map((s,i)=>`\n───── SCENA ${i+1} (rif: ${s.hdr}) ─────\n${s.txt}`).join('\n');
-    openBridge('day',SYS_DAY_ALL,msg,{scenes});
+    openBridge('day',SYS_DAY_ALL(),msg,{scenes});
     return;
   }
 
-  S.loading=true;S.step=`Rilevate ${scenes.length} ${scenes.length===1?'scena':'scene'} — analisi reparto macchina`;S.sub='';render();
+  S.loading=true;S.step=`Rilevate ${scenes.length} ${scenes.length===1?'scena':'scene'} — analisi in corso`;S.sub='';render();
   try{
     const res=[];
     for(let i=0;i<scenes.length;i++){
@@ -803,7 +804,7 @@ async function runDay(){
       const sc=scenes[i];
       const msg=base+`\n\nODG / NOTE DEL GIORNO:\n${S.day.odg||'(non fornito)'}\n\nSCENA DA ANALIZZARE:\n${sc.txt}`;
       try{
-        const raw=await claude(SYS_SCENE,msg,1500);
+        const raw=await claude(SYS_SCENE(),msg,1500);
         const j=parseJSON(raw);
         res.push({id:sc.id,hdr:sc.hdr,criticita:NORM(j.criticita),titolo:j.titolo_breve||sc.hdr,sintesi:j.sintesi||'',gear:Array.isArray(j.gear)?j.gear:[],anticipa:Array.isArray(j.anticipa)?j.anticipa:[],note:Array.isArray(j.note_tecniche)?j.note_tecniche:[]});
       }catch{
@@ -813,7 +814,7 @@ async function runDay(){
     S.step='Quadro della giornata';S.sub='';render();
     const dayMsg=base+`\n\nODG:\n${S.day.odg||'(non fornito)'}\n\nSCENE DELLA GIORNATA (già analizzate):\n`+res.map(r=>`• [${LABEL[r.criticita]}] ${r.titolo} — ${r.sintesi}`).join('\n');
     let dout={overview:'',criticita_globale:'media',checklist:[],anticipa:[],domande:[]};
-    try{const raw=await claude(SYS_DAY,dayMsg,2000);const j=parseJSON(raw);dout={overview:j.overview||'',criticita_globale:NORM(j.criticita_globale),checklist:Array.isArray(j.checklist)?j.checklist:[],anticipa:Array.isArray(j.anticipa)?j.anticipa:[],domande:Array.isArray(j.domande)?j.domande:[]};}catch{}
+    try{const raw=await claude(SYS_DAY(),dayMsg,2000);const j=parseJSON(raw);dout={overview:j.overview||'',criticita_globale:NORM(j.criticita_globale),checklist:Array.isArray(j.checklist)?j.checklist:[],anticipa:Array.isArray(j.anticipa)?j.anticipa:[],domande:Array.isArray(j.domande)?j.domande:[]};}catch{}
     finalizeDay(res,dout);
   }catch(e){S.error=e.message||"Errore durante l'analisi.";}
   finally{S.loading=false;S.step='';S.sub='';render();}
@@ -892,9 +893,9 @@ function buildDiffMsg(){
 async function runDiff(){
   if(!S.compare)return;
   const msg=buildDiffMsg();if(!msg)return;
-  if(S.mode==='manual'){openBridge('diff',SYS_DIFF,msg);return;}
+  if(S.mode==='manual'){openBridge('diff',SYS_DIFF(),msg);return;}
   S.diffAI={loading:true,text:'',error:''};render();
-  try{const raw=await claude(SYS_DIFF,msg,1200);S.diffAI={loading:false,text:raw.trim(),error:''};}
+  try{const raw=await claude(SYS_DIFF(),msg,1200);S.diffAI={loading:false,text:raw.trim(),error:''};}
   catch(e){S.diffAI={loading:false,text:'',error:e.message||'Errore'};}
   render();
 }
@@ -1639,6 +1640,27 @@ function renderImpostazioni(){
   </div>`;
 
   h+=`<div class="sec">
+    <div class="sectit"><h2>Il tuo ruolo</h2></div>
+    <div class="card" style="padding:18px">
+      <div class="field">
+        <label class="lbl">Ruolo sul set</label>
+        <select id="sel-ruolo" class="inp" style="cursor:pointer">
+          <option value="">— Seleziona il tuo ruolo —</option>
+          ${RUOLI_LISTA.map(r=>`<option value="${esc(r)}"${S.profile.ruolo===r?' selected':''}>${esc(r)}</option>`).join('')}
+          <option value="__altro"${S.profile.ruolo&&!RUOLI_LISTA.includes(S.profile.ruolo)?' selected':''}>Altro…</option>
+        </select>
+        ${S.profile.ruolo&&!RUOLI_LISTA.includes(S.profile.ruolo)?`<input id="inp-ruolo-custom" class="inp" type="text" value="${esc(S.profile.ruolo)}" placeholder="Scrivi il tuo ruolo" style="margin-top:8px">`:''}
+        <div id="ruolo-custom-wrap"></div>
+        <div class="hint">L'analisi e i consigli vengono calibrati sul tuo reparto e le tue responsabilità specifiche.</div>
+      </div>
+      <div class="row">
+        <span id="ruolo-ok" class="saved" style="display:none"><span class="dot" style="background:var(--acc)"></span>Salvato</span>
+        ${S.profile.ruolo?`<span class="ok">● ${esc(ruoloLabel())}</span>`:'<span style="color:var(--mu2);font-size:12px">Nessun ruolo impostato</span>'}
+      </div>
+    </div>
+  </div>`;
+
+  h+=`<div class="sec">
     <div class="sectit"><h2>API Key</h2></div>
     <div class="card" style="padding:18px">
       ${S.mode==='manual'?`<div class="vbanner" style="margin:0 0 16px">Sei in <b>modalità Manuale</b>: non ti serve nessuna API key. Compila questo campo solo se passi alla modalità <b>⚡ API</b> per l'analisi automatica.</div>`:''}
@@ -1661,6 +1683,25 @@ function renderImpostazioni(){
 
   h+='</div>';
   document.getElementById('main').innerHTML=h;
+
+  document.getElementById('sel-ruolo')?.addEventListener('change',e=>{
+    const v=e.target.value;
+    if(v==='__altro'){
+      const wrap=document.getElementById('ruolo-custom-wrap');
+      wrap.innerHTML='<input id="inp-ruolo-custom" class="inp" type="text" placeholder="Scrivi il tuo ruolo" style="margin-top:8px">';
+      document.getElementById('inp-ruolo-custom').addEventListener('change',ev=>{
+        S.profile.ruolo=ev.target.value.trim();lsSet('ac.profile',S.profile);
+        const ok=document.getElementById('ruolo-ok');ok.style.display='inline-flex';setTimeout(()=>render(),1200);
+      });
+    }else{
+      S.profile.ruolo=v;lsSet('ac.profile',S.profile);
+      const ok=document.getElementById('ruolo-ok');ok.style.display='inline-flex';setTimeout(()=>render(),1200);
+    }
+  });
+  document.getElementById('inp-ruolo-custom')?.addEventListener('change',e=>{
+    S.profile.ruolo=e.target.value.trim();lsSet('ac.profile',S.profile);
+    const ok=document.getElementById('ruolo-ok');ok.style.display='inline-flex';setTimeout(()=>render(),1200);
+  });
 
   document.getElementById('btn-skey')?.addEventListener('click',()=>{
     S.apiKey=document.getElementById('inp-key').value.trim();

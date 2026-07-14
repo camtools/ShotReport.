@@ -591,38 +591,38 @@ function parseJSON(t){
 // ═══════════════════════════ PROMPTS ══════════════════════════════════
 const RUOLI_LISTA=['Primo assistente operatore','Operatore','DOP / Direttore della fotografia','Macchinista','Elettricista','Fonico','Aiuto regia','Segretaria di edizione','Direttore di produzione','Ispettore di produzione','Scenografo','Costumista','Truccatore','VFX Supervisor'];
 function ruoloLabel(){return S.profile.ruolo||'professionista del set';}
-function sysPreamble(){return `Sei un ${ruoloLabel()} esperto del cinema italiano, vent'anni di esperienza su set di lungometraggi e serie. Rispondi dal punto di vista specifico del tuo ruolo. Sii CONCISO e OPERATIVO: frasi corte, gergo da set, zero fuffa. Ogni voce deve essere un'azione o un fatto, non una spiegazione.`;}
+function sysPreamble(){return `Sei un ${ruoloLabel()} esperto del cinema italiano, vent'anni di esperienza su set di lungometraggi e serie. Rispondi dal punto di vista specifico del tuo ruolo. Sii diretto e operativo: frasi concise, tono da set, niente giri di parole. Ogni voce deve essere un'azione concreta o un fatto utile.`;}
 
 const SYS_DOCS=()=>`${sysPreamble()}
 Analizza i documenti di produzione dal punto di vista del tuo ruolo.
 Rispondi SOLO con JSON valido:
-{"briefing":"quadro produzione per il tuo reparto, max 800 chars — sfide, scene critiche, condizioni particolari, note operative","scene_chiave":[{"sc":"numero","desc":"3-4 parole","crit":"alta|media|bassa","nota":"nota sintetica"}],"pdl_summary":"sintesi PDL — giorni, ritmo, max 300 chars","rischi":["rischi tecnici per il tuo reparto — max 4 voci, una riga ciascuna"]}`;
+{"briefing":"quadro produzione per il tuo reparto, max 1200 chars — sfide principali, scene critiche, condizioni particolari, note operative","scene_chiave":[{"sc":"numero o rif.","desc":"3-4 parole","crit":"alta|media|bassa","nota":"nota sintetica per il tuo reparto"}],"pdl_summary":"sintesi PDL — giorni, ritmo, scene per giorno se desumibile, max 400 chars","rischi":["rischi tecnici per il tuo reparto — max 5 voci concise"]}`;
 
 const SYS_SCENE=()=>`${sysPreamble()}
-Analizzi UNA scena. Se c'è un briefing produzione (delimitato da ━━), usalo.
+Analizzi UNA scena. Se c'è un briefing produzione (delimitato da ━━), usalo per arricchire l'analisi.
 Rispondi SOLO con JSON valido:
-{"criticita":"alta|media|bassa","titolo_breve":"3-5 parole","sintesi":"1 frase secca: cosa succede e perché ti riguarda","gear":["max 3 — cosa ti serve"],"anticipa":["max 3 — cosa preparare/chiedere prima"],"note_tecniche":["max 3 — rischi concreti, una riga ciascuna"]}`;
+{"criticita":"alta|media|bassa","titolo_breve":"3-6 parole","sintesi":"1-2 frasi: cosa succede e perché impatta il tuo reparto","gear":["max 4 — cosa ti serve, voci brevi"],"anticipa":["max 4 — cosa preparare/provare/chiedere prima di girare"],"note_tecniche":["max 4 — rischi concreti e note operative, una riga ciascuna"]}`;
 
 const SYS_DAY=()=>`${sysPreamble()}
 Hai analizzato le scene della giornata. Dai il quadro d'insieme come faresti col tuo capo reparto a inizio giornata.
 Rispondi SOLO con JSON valido:
-{"overview":"2-3 frasi secche: ritmo della giornata, sfide principali, priorità","criticita_globale":"alta|media|bassa","checklist":["pronto a inizio giornata — max 4 voci"],"anticipa":["da fare prima o nei tempi morti — max 3"],"domande":["domande precise per i reparti coinvolti — max 4"]}`;
+{"overview":"3-4 frasi: ritmo della giornata, sfide principali, priorità operative","criticita_globale":"alta|media|bassa","checklist":["cose da avere pronte a inizio giornata — max 5 voci"],"anticipa":["da fare il giorno prima o nei tempi morti — max 4"],"domande":["domande precise per i reparti coinvolti — max 5"]}`;
 
 const SYS_DIFF=()=>`${sysPreamble()}
 Ti vengono date due versioni della memoria di produzione (PRECEDENTE e NUOVA).
-Spiega COSA È CAMBIATO che impatta il tuo reparto e cosa tenere d'occhio. Max 4-5 frasi, diretto, tono da set. Niente JSON, niente elenchi puntati. Se i cambiamenti sono minimi, dillo in una riga.`;
+Spiega COSA È CAMBIATO che impatta il tuo reparto e cosa tenere d'occhio. Max 5-6 frasi, diretto, tono da set. Niente JSON, niente elenchi puntati. Se i cambiamenti sono minimi, dillo in una riga.`;
 
 const SYS_DAY_ALL=()=>`${sysPreamble()}
 Analizza TUTTE le scene della giornata dal punto di vista del tuo ruolo, poi dai il quadro d'insieme.
-Se c'è un briefing produzione (delimitato da ━━), usalo.
-IMPORTANTE: l'array "scene" deve avere ESATTAMENTE un elemento per ogni scena fornita, NELLO STESSO ORDINE.
+Se c'è un briefing produzione (delimitato da ━━), usalo per arricchire l'analisi.
+IMPORTANTE: l'array "scene" deve avere ESATTAMENTE un elemento per ogni scena fornita, NELLO STESSO ORDINE. Ogni scena va analizzata singolarmente.
 Rispondi SOLO con JSON valido:
-{"scene":[{"criticita":"alta|media|bassa","titolo_breve":"3-5 parole","sintesi":"1 frase secca","gear":["max 3"],"anticipa":["max 3"],"note_tecniche":["max 3"]}],"quadro":{"overview":"2-3 frasi secche","criticita_globale":"alta|media|bassa","checklist":["max 4"],"anticipa":["max 3"],"domande":["max 4"]}}`;
+{"scene":[{"criticita":"alta|media|bassa","titolo_breve":"3-6 parole","sintesi":"1-2 frasi","gear":["max 4"],"anticipa":["max 4"],"note_tecniche":["max 4"]}],"quadro":{"overview":"3-4 frasi","criticita_globale":"alta|media|bassa","checklist":["max 5"],"anticipa":["max 4"],"domande":["max 5"]}}`;
 
 const SYS_RIASSUNTO=`Sei uno script reader esperto del cinema italiano.
 Crea un riassunto chiaro e utile per chi deve prepararsi alla produzione senza aver letto la sceneggiatura.
 Rispondi SOLO con JSON valido:
-{"titolo":"titolo se deducibile, altrimenti stringa vuota","logline":"1 frase che riassume la storia","sinossi":"riassunto in prosa, diviso in paragrafi (\\n\\n), max 2500 caratteri","personaggi":[{"nome":"...","ruolo":"chi è e cosa fa, una riga"}],"struttura":["blocchi narrativi / atti, max 5 voci brevi"]}`;
+{"titolo":"titolo se deducibile, altrimenti stringa vuota","logline":"1-2 frasi che riassumono la storia","sinossi":"riassunto in prosa, diviso in paragrafi (\\n\\n), scorrevole e completo, max 3000 caratteri","personaggi":[{"nome":"...","ruolo":"breve descrizione del personaggio e del suo arco"}],"struttura":["blocchi narrativi / atti, max 6 voci brevi"]}`;
 
 // ═══════════════════════════ UTILS ════════════════════════════════════
 const NORM=c=>{const v=(c||'').toLowerCase();return v.startsWith('a')?'alta':v.startsWith('m')?'media':'bassa';};
@@ -638,14 +638,23 @@ function splitScenes(text){
   const lines=text.split(/\r?\n/);
   const H=/^\s*(\d+[.)]\s*)?(INT|EST|INT\s*[\/.\-]\s*EST|EST\s*[\/.\-]\s*INT|INTERNO|ESTERNO)\b/i;
   const A=/^\s*SCENA\s+\d+/i;
+  const ODG=/^\s*(?:Sc\.?\s*\d|SC\s+\d|\d+\s*[\/\\]\s*\d+\s)/i;
   const blks=[];let cur=null;
   for(const ln of lines){
-    if(H.test(ln)||A.test(ln)){if(cur)blks.push(cur);cur={hdr:ln.trim(),txt:ln+'\n'};}
+    if(H.test(ln)||A.test(ln)||ODG.test(ln)){if(cur)blks.push(cur);cur={hdr:ln.trim(),txt:ln+'\n'};}
     else if(cur){cur.txt+=ln+'\n';}
     else{cur={hdr:'Sequenza',txt:ln+'\n'};}
   }
   if(cur)blks.push(cur);
-  if(!blks.length)blks.push({hdr:'Sequenza',txt:text});
+  const noHeaders=blks.length===1&&blks[0].hdr==='Sequenza';
+  if(noHeaders){
+    blks.length=0;
+    const chunks=text.split(/\n{2,}/);
+    if(chunks.length>1){
+      for(const ch of chunks){const t=ch.trim();if(t.length>10)blks.push({hdr:t.slice(0,60),txt:t});}
+    }
+    if(!blks.length)blks.push({hdr:'Sequenza',txt:text});
+  }
   return blks.filter(b=>b.txt.trim().length>3).map((b,i)=>({id:i+1,hdr:b.hdr.slice(0,90),txt:b.txt.trim()}));
 }
 

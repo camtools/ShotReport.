@@ -282,7 +282,8 @@ function today(){ const d=new Date();return `${d.getFullYear()}-${String(d.getMo
 function loadTodayDay(){
   const t=today();
   const saved=lsGet('ac.day.'+t,null);
-  return saved||{data:t,odg:'',scene:''};
+  if(saved){saved.scene=saved.scene||'';saved.odg=saved.odg||'';return saved;}
+  return {data:t,odg:'',scene:''};
 }
 
 const PRICING={inputCost:0.000003,outputCost:0.000015};
@@ -634,7 +635,7 @@ function fmtDate(iso){
   catch{return iso;}
 }
 function splitScenes(text){
-  if(!text.trim())return[];
+  if(!(text||'').trim())return[];
   const lines=text.split(/\r?\n/);
   const H=/^\s*(\d+[.)]\s*)?(INT|EST|INT\s*[\/.\-]\s*EST|EST\s*[\/.\-]\s*INT|INTERNO|ESTERNO)\b/i;
   const A=/^\s*SCENA\s+\d+/i;
@@ -1258,7 +1259,7 @@ function renderOggi(){
       <!-- Scene textarea -->
       <div style="margin-bottom:18px">
         <label class="lbl">Scene della giornata</label>
-        <textarea id="ta-scene" class="inp" rows="6" placeholder="Incolla le scene dalla sceneggiatura (es. INT. CASA - GIORNO…) oppure carica il PDF ODG sopra.">${esc(S.day.scene)}</textarea>
+        <textarea id="ta-scene" class="inp" rows="6" placeholder="Incolla le scene dalla sceneggiatura (es. INT. CASA - GIORNO…) oppure carica il PDF ODG sopra.">${esc(S.day.scene||'')}</textarea>
       </div>
 
       <!-- Action button -->
@@ -1341,7 +1342,7 @@ function renderOggi(){
       const newDate=`${parts[3]}-${parts[2].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
       if(newDate!==S.day.data){
         saveDayState();
-        S.day=lsGet('ac.day.'+newDate,{data:newDate,odg:'',scene:''});
+        S.day=lsGet('ac.day.'+newDate,{data:newDate,odg:'',scene:''});S.day.scene=S.day.scene||'';S.day.odg=S.day.odg||'';
       }
     }
     saveDayState();
@@ -1350,11 +1351,11 @@ function renderOggi(){
   document.getElementById('f-odg')?.addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;
     const el=document.getElementById('fn-odg');el.textContent='Estrazione…';
-    try{const t=await extractText(f);S.day.odg=t;if(!S.day.scene.trim())S.day.scene=t;saveDayState();render();}
+    try{const t=await extractText(f);S.day.odg=t;if(!(S.day.scene||'').trim())S.day.scene=t;saveDayState();render();}
     catch{el.textContent='✗ Errore PDF';}
   });
   document.getElementById('del-odg')?.addEventListener('click',()=>{
-    if(!S.day.scene.trim()||S.day.scene.trim()===S.day.odg.trim())S.day.scene='';
+    if(!(S.day.scene||'').trim()||(S.day.scene||'').trim()===(S.day.odg||'').trim())S.day.scene='';
     S.day.odg='';
     saveDayState();
     render();
